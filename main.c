@@ -5,36 +5,34 @@
 #include <float.h>
 #include <time.h>
 
+#define NUM_TRAPECIOS 1000000000000
+#define PI_REF 3.14
 
-// Definicion de la funcion de la funcion matematica a evaluar
-long double funcionIntegrar(long double x)
-{
-	return 1/sqrt(1 - x*x);
+double funcion(double x) {
+	return 1.0 / sqrt(1.0 - x * x);
 }
 
-// Funcion método del trapacio
-long double trapecio (long double limiteInferior, long double limiteSuperior, long long tramos)
-{
-    /* ---------------------------------- */
-    int i;
-    long double dx, area, x;
-    long double fa, fb, fx;
-    /* ---------------------------------- */
-    
-    fa = funcionIntegrar(limiteInferior);
-    fb = funcionIntegrar(limiteSuperior);
-    dx = (limiteSuperior - limiteInferior)/(long double)tramos;
-    fx = 0.0;
-    
-    for (i = 1; i < tramos; i++)
-    {
-        x = limiteInferior + i * dx;
-        fx += funcionIntegrar(x);
+double area(double inferior, double superior) {
+
+    double base = superior - inferior;
+
+    double lim_inf = funcion(inferior);
+    double lim_sup = funcion(superior);
+
+    double diff = fabs(lim_inf - lim_sup);
+
+    // Area triangulo
+    double area = base * diff / 2.0;
+
+    // Area trapecio
+    if (lim_inf >= lim_sup) {
+        area += base * lim_sup;
+    } else {
+        area += base * lim_inf;
     }
-    
-    area = (fx + (fa + fb) / 2) * dx;
-    
+
     return area;
+
 }
 
 void getCurrentTime(char *buffer, size_t size){
@@ -46,6 +44,7 @@ void getCurrentTime(char *buffer, size_t size){
 }
 
 int main(int argc, char** argv) {
+
     MPI_Init(NULL, NULL);
 
     int world_rank;
@@ -54,41 +53,29 @@ int main(int argc, char** argv) {
     MPI_Comm_rank(MPI_COMM_WORLD, &world_rank);
     MPI_Comm_size(MPI_COMM_WORLD, &world_size);
 
-    // Tiempos
+    // Buffer para almacenar el string del tiempo
     char timeBuffer[25];
 
-    long long numeroTrapecios = 10000000;
-
     // Calculo del salto para cada proceso
-    long double baseTrapecio = (2 - (1 - 0.9999999)) / numeroTrapecios;
+    double limiteSuperior = 1.0 - DBL_EPSILON;
+    double limiteInferior = -1.0 + DBL_EPSILON;
+    double baseTrapecio = (double)((limiteSuperior - limiteInferior) / NUM_TRAPECIOS);
 
-    long double resultadoProceso;
+    double local = 0.0;
+    double total = 0.0;
 
-    long double resultadoTotal = 0;
+    for(double inicio = limiteInferior + (world_rank * baseTrapecio); inicio + baseTrapecio <= limiteSuperior; inicio += baseTrapecio * world_size) {
 
-    if (world_rank != 0) {
-        // Ejecuta la funcion
-        for (int inicio = world_rank; inicio < world_size; inicio+=world_size) {
-            long double resultado = trapecio(-1 + inicio * baseTrapecio, -1 + inicio * baseTrapecio + baseTrapecio, 10000000);
-            getCurrentTime(timeBuffer, 25);
-            // Imprimir tiempo
-            printf("%s | Proceso %d | %Lf\n ", timeBuffer, world_rank, resultado);
-            MPI_Send(&resultado, 1, MPI_LONG_DOUBLE, 0, 0, MPI_COMM_WORLD);
-        }
+        local += area(inicio, inicio + baseTrapecio);
+
     }
 
+    MPI_Reduce(&local, &total, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
 
     if (world_rank == 0) {
-        for (int numeroProceso = 1; numeroProceso < world_size; numeroProceso++) {
-            MPI_Recv(&resultadoProceso, 1, MPI_LONG_DOUBLE , numeroProceso, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-            getCurrentTime(timeBuffer, 25);
-            printf("%s | Proceso %d | %Lf\n ", timeBuffer, world_rank, resultadoProceso);
-            resultadoTotal += resultadoProceso;
-        }
-        getCurrentTime(timeBuffer, 25);
-        printf("%s | Proceso %d | %Lf\n ", timeBuffer, world_rank, resultadoTotal);
+        printf("Res: %e\n", total);
     }
 
     MPI_Finalize();
-    return 0;
+
 }
