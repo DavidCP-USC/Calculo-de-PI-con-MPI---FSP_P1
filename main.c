@@ -4,9 +4,9 @@
 #include <math.h>
 #include <float.h>
 #include <time.h>
+#include <sys/time.h>
 
-#define NUM_TRAPECIOS 1000000000000
-#define PI_REF 3.14
+#define PI_REF 3.1415926535897932384626433832795028841971693993751058209749446
 
 double funcion(double x) {
 	return 1.0 / sqrt(1.0 - x * x);
@@ -14,68 +14,76 @@ double funcion(double x) {
 
 double area(double inferior, double superior) {
 
-    double base = superior - inferior;
+	double base = superior - inferior;
 
-    double lim_inf = funcion(inferior);
-    double lim_sup = funcion(superior);
+	double lim_inf = funcion(inferior);
+	double lim_sup = funcion(superior);
 
-    double diff = fabs(lim_inf - lim_sup);
+	double diff = fabs(lim_inf - lim_sup);
 
-    // Area triangulo
-    double area = base * diff / 2.0;
+	// Area triangulo
+	double area = base * diff / 2.0;
 
-    // Area trapecio
-    if (lim_inf >= lim_sup) {
-        area += base * lim_sup;
-    } else {
-        area += base * lim_inf;
-    }
+	// Area trapecio
+	if (lim_inf >= lim_sup) {
+		area += base * lim_sup;
+	} else {
+		area += base * lim_inf;
+	}
 
-    return area;
+	return area;
 
-}
-
-void getCurrentTime(char *buffer, size_t size){
-    time_t timer;
-    struct tm* tm_info;
-    time(&timer);
-    tm_info = localtime(&timer);
-    strftime(buffer, size, "%Y-%m-%d %H:%M:%S", tm_info);
 }
 
 int main(int argc, char** argv) {
 
-    MPI_Init(NULL, NULL);
+	int numTrapecios = atoi(argv[1]);
 
-    int world_rank;
-    int world_size;
+	struct timeval start;
+	struct timeval start2;
+	struct timeval end;
 
-    MPI_Comm_rank(MPI_COMM_WORLD, &world_rank);
-    MPI_Comm_size(MPI_COMM_WORLD, &world_size);
+	// Calculo del salto para cada proceso
+	double limiteSuperior = 1.0 - DBL_EPSILON;
+	double limiteInferior = -1.0 + DBL_EPSILON;
+	double baseTrapecio = (double)((limiteSuperior - limiteInferior) / numTrapecios);
 
-    // Buffer para almacenar el string del tiempo
-    char timeBuffer[25];
+	double local = 0.0;
+	double total = 0.0;
 
-    // Calculo del salto para cada proceso
-    double limiteSuperior = 1.0 - DBL_EPSILON;
-    double limiteInferior = -1.0 + DBL_EPSILON;
-    double baseTrapecio = (double)((limiteSuperior - limiteInferior) / NUM_TRAPECIOS);
+	int world_rank;
+	int world_size;
 
-    double local = 0.0;
-    double total = 0.0;
+	MPI_Init(NULL, NULL);
 
-    for(double inicio = limiteInferior + (world_rank * baseTrapecio); inicio + baseTrapecio <= limiteSuperior; inicio += baseTrapecio * world_size) {
+	MPI_Comm_rank(MPI_COMM_WORLD, &world_rank);
+	MPI_Comm_size(MPI_COMM_WORLD, &world_size);
 
-        local += area(inicio, inicio + baseTrapecio);
+	gettimeofday(&start, NULL);
+	gettimeofday(&start2, NULL);
 
-    }
+	for(double inicio = limiteInferior + (world_rank * baseTrapecio); inicio + baseTrapecio <= limiteSuperior; inicio += baseTrapecio * world_size) {
 
-    MPI_Reduce(&local, &total, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+		local += area(inicio, inicio + baseTrapecio);
 
-    if (world_rank == 0) {
-        printf("Res: %e\n", total);
-    }
+	}
 
-    MPI_Finalize();
+	gettimeofday(&end, NULL);
+
+	MPI_Reduce(&local, &total, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+
+	if (world_rank == 0) {
+
+		float overhead = (start2.tv_sec - start.tv_sec) + (start2.tv_usec - start.tv_usec) / 1e6;
+		float time = (start2.tv_sec - start.tv_sec) + (start2.tv_usec - start.tv_usec) / 1e6 - overhead;
+		float diff = PI_REF - total;
+
+		printf("'DATA_FSP_V1',%e,%e,%d,%d,%f\n", total, diff, numTrapecios, world_size, time);
+
+	}
+
+	MPI_Finalize();
+
+	return 0;
 
 }
