@@ -1,6 +1,7 @@
 #!/bin/bash
 
-rm -r ./outs/*
+rm -r ./outs
+mkdir ./outs
 
 module load gcc openmpi/4.1.4_ft3
 

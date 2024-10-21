@@ -72,13 +72,18 @@ int main(int argc, char** argv) {
 
 	MPI_Reduce(&local, &total, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
 
+	float overhead = (start2.tv_sec - start.tv_sec) + (start2.tv_usec - start.tv_usec) / 1e6;
+	float time = (start2.tv_sec - start.tv_sec) + (start2.tv_usec - start.tv_usec) / 1e6 - overhead;
+
 	if (world_rank == 0) {
 
-		float overhead = (start2.tv_sec - start.tv_sec) + (start2.tv_usec - start.tv_usec) / 1e6;
-		float time = (start2.tv_sec - start.tv_sec) + (start2.tv_usec - start.tv_usec) / 1e6 - overhead;
 		float diff = PI_REF - total;
 
-		printf("'DATA_FSP_V1',%e,%e,%d,%d,%f\n", total, diff, numTrapecios, world_size, time);
+		printf("'DATA_FSP_V1',%e,%e,%d,%d,%e\n", total, diff, numTrapecios, world_size, time);
+
+	} else {
+
+		printf("'DATA_FSP_V1',%d,%d,%d,%d,%e\n", -1, -1, numTrapecios, world_size, time);
 
 	}
 
