@@ -1,8 +1,10 @@
 #!/bin/bash
 
-MAX_ITE=1000000
+MAX_ITE=1000000000000
 
-for i in $(seq 1 $MAX_ITE)
+i=1
+while [ $i -le $MAX_ITE ]
 do
-    srun $1 $i
+	srun $1 $i
+	i=$(($i * 10))
 done

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-files=$(ls -1 ./outs/FSP*.o)
+files=$(ls -1 ./outs/*.o)
 
 for file in $files
 do
