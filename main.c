@@ -9,20 +9,22 @@
 
 #define PI_REF 3.1415926535897932384626433832795028841971693993751058209749446
 
-long double funcion(long double x) {
-	return 1.0L / sqrt(1.0L - x * x);
+#define TAG 0
+
+double funcion(double x) {
+	return 1.0 / sqrt(1.0 - x * x);
 }
 
-long double area(long double inferior, long double superior) {
+double area(double inferior, double superior) {
 
-	long double base = superior - inferior;
+	double base = superior - inferior;
 
-	long double lim_inf = funcion(inferior);
-	long double lim_sup = funcion(superior);
+	double lim_inf = funcion(inferior);
+	double lim_sup = funcion(superior);
 
-	long double diff = fabs(lim_inf - lim_sup);
+	double diff = fabs(lim_inf - lim_sup);
 
-	long double area = base * diff / 2.0L;
+	double area = base * diff / 2.0;
 
 	if (lim_inf >= lim_sup) {
 		area += base * lim_sup;
@@ -40,12 +42,12 @@ int main(int argc, char** argv) {
 
 	long numTrapecios = strtol(argv[1], &endptr, 10);
 
-	long double limiteSuperior = 1.0L - (2.0L * DBL_EPSILON);
-	long double limiteInferior = -1.0L + (2.0L * DBL_EPSILON);
-	long double baseTrapecio = (limiteSuperior - limiteInferior) / numTrapecios;
+	double limiteSuperior = 1.0 - (2.0 * DBL_EPSILON);
+	double limiteInferior = -1.0 + (2.0 * DBL_EPSILON);
+	double baseTrapecio = (limiteSuperior - limiteInferior) / numTrapecios;
 
-	long double local = 0.0L;
-	long double total = 0.0L;
+	double local = 0.0;
+	double total = 0.0;
 
 	int world_rank;
 	int world_size;
@@ -64,23 +66,42 @@ int main(int argc, char** argv) {
 
 	for (long inicio = world_rank; inicio < numTrapecios; inicio += world_size) {
 
-		long double inicioTrapecio = limiteInferior + (inicio * baseTrapecio);
+		double inicioTrapecio = limiteInferior + (inicio * baseTrapecio);
 		local += area(inicioTrapecio, inicioTrapecio + baseTrapecio);
 
 	}
 
-	gettimeofday(&end, NULL);
+	// El codigo siguiente podria adaptarse para usar MPI_Reduce
+	// MPI_Reduce(&local, &total, 1, MPI_LONG_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+	// No se implementa por las restricciones del enunciado de la practica
 
-	MPI_Reduce(&local, &total, 1, MPI_LONG_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+	if (world_rank == 0) {
+
+		total += local;
+
+		for (int i = 1; i < world_size; i++) {
+
+			MPI_Recv(&local, 1, MPI_DOUBLE, i, TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+			total += local;
+
+		}
+
+	} else {
+
+		MPI_Send(&local, 1, MPI_DOUBLE, 0, TAG, MPI_COMM_WORLD);
+
+	}
+
+	gettimeofday(&end, NULL);
 
 	double overhead = (start2.tv_sec - start.tv_sec) + (start2.tv_usec - start.tv_usec) / 1e6;
 	double time = (end.tv_sec - start2.tv_sec) + (end.tv_usec - start2.tv_usec) / 1e6 - overhead;
 
 	if (world_rank == 0) {
 
-		long double diff = PI_REF - total;
+		double diff = PI_REF - total;
 
-		printf("'DATA_FSP_V1',%.18Lf,%.18Lf,%ld,%d,%.15f\n", total, diff, numTrapecios, world_size, time);
+		printf("'DATA_FSP_V1',%.15f,%.15f,%ld,%d,%.15f\n", total, diff, numTrapecios, world_size, time);
 
 	} else {
 
