@@ -1,11 +1,12 @@
 #!/bin/bash
 
-#rm -r ./outs
-#mkdir ./outs
+rm -r ./outs
+mkdir ./outs
 
 module load gcc openmpi/4.1.4_ft3
 
-mpicc main.c -o P1.o -lm
+# mpicc main.1.c -o P1.o -lm
+mpicc main.2.c -o P1.o -lm
 
 MIN_N=1
 MAX_N=8
