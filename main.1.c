@@ -1,63 +1,63 @@
-#include <mpi.h>      // Biblioteca MPI para comunicación paralela
+#include <mpi.h>      // Biblioteca MPI para comunicacion paralela
 #include <unistd.h>   // Para funciones relacionadas con el sistema operativo
-#include <stdio.h>    // Para entrada y salida estándar
-#include <stdlib.h>   // Para conversión de datos y gestión de memoria
-#include <math.h>     // Biblioteca matemática para cálculos como sqrt
-#include <float.h>    // Define límites de precisión para tipos de datos de punto flotante
+#include <stdio.h>    // Para entrada y salida estandar
+#include <stdlib.h>   // Para conversion de datos y gestion de memoria
+#include <math.h>     // Biblioteca matematica para calculos como sqrt
+#include <float.h>    // Define limites de precision para tipos de datos de punto flotante
 #include <time.h>     // Biblioteca para manejo del tiempo
-#include <sys/time.h> // Para medir tiempos de ejecución de alta precisión
+#include <sys/time.h> // Para medir tiempos de ejecucion de alta precision
 
-// Definición de una constante precisa del valor de π (para calcular el error)
+// Definicion de una constante precisa del valor de π (para calcular el error)
 #define PI_REF 3.1415926535897932384626433832795028841971693993751058209749446
 
 // Etiqueta para comunicaciones MPI
 #define TAG 0
 
-// Función matemática que calcula f(x) = 1 / sqrt(1 - x^2)
+// Funcion matematica que calcula f(x) = 1 / sqrt(1 - x^2)
 double funcion(double x) {
 	return 1.0 / sqrt(1.0 - x * x);
 }
 
-// Función que calcula el área de un trapecio dados sus límites inferior y superior
+// Funcion que calcula el area de un trapecio dados sus limites inferior y superior
 double area(double inferior, double superior) {
 
 	// Calcula la base del trapecio
 	double base = superior - inferior;
 
-	// Evalúa la función en los límites
+	// Evalua la funcion en los limites
 	double lim_inf = funcion(inferior);
 	double lim_sup = funcion(superior);
 
-	// Diferencia absoluta entre los valores en los límites
+	// Diferencia absoluta entre los valores en los limites
 	double diff = fabs(lim_inf - lim_sup);
 
-	// Calcula el área del triángulo formado por la diferencia
+	// Calcula el area del triangulo formado por la diferencia
 	double area = base * diff / 2.0;
 
-	// Ajusta el área dependiendo de cuál de los valores límite es mayor
+	// Ajusta el area dependiendo de cual de los valores limite es mayor
 	if (lim_inf >= lim_sup) {
 		area += base * lim_sup;
 	} else {
 		area += base * lim_inf;
 	}
 
-	return area; // Devuelve el área calculada
+	return area; // Devuelve el area calculada
 }
 
 int main(int argc, char** argv) {
 
-	// Puntero para almacenar errores en la conversión de argumentos
+	// Puntero para almacenar errores en la conversion de argumentos
 	char* endptr;
 
-	// Convierte el número de trapecios recibido como argumento
+	// Convierte el numero de trapecios recibido como argumento
 	long numTrapecios = strtol(argv[1], &endptr, 10);
 
-	// Define los límites del intervalo de integración
-	double limiteSuperior = 1.0 - (2.0 * DBL_EPSILON); // Ajuste para evitar problemas de precisión
+	// Define los limites del intervalo de integracion
+	double limiteSuperior = 1.0 - (2.0 * DBL_EPSILON); // Ajuste para evitar problemas de precision
 	double limiteInferior = -1.0 + (2.0 * DBL_EPSILON);
 	double baseTrapecio = (limiteSuperior - limiteInferior) / numTrapecios; // Ancho de cada trapecio
 
-	// Variables para almacenar los cálculos locales y totales
+	// Variables para almacenar los calculos locales y totales
 	double local = 0.0;
 	double total = 0.0;
 
@@ -65,7 +65,7 @@ int main(int argc, char** argv) {
 	int world_rank;
 	int world_size;
 
-	// Variables para medir tiempos de ejecución
+	// Variables para medir tiempos de ejecucion
 	struct timeval start;
 	struct timeval start2;
 	struct timeval end;
@@ -75,24 +75,24 @@ int main(int argc, char** argv) {
 
 	// Obtiene el rango del proceso actual
 	MPI_Comm_rank(MPI_COMM_WORLD, &world_rank);
-	// Obtiene el número total de procesos
+	// Obtiene el numero total de procesos
 	MPI_Comm_size(MPI_COMM_WORLD, &world_size);
 
-	// Marca el inicio de la medición del tiempo
+	// Marca el inicio de la medicion del tiempo
 	gettimeofday(&start, NULL);
 	gettimeofday(&start2, NULL);
 
-	// Ciclo principal: divide los trapecios entre procesos de forma cíclica
+	// Ciclo principal: divide los trapecios entre procesos de forma ciclica
 	for (long inicio = world_rank; inicio < numTrapecios; inicio += world_size) {
 
-		// Calcula los límites del trapecio actual
+		// Calcula los limites del trapecio actual
 		double inicioTrapecio = limiteInferior + (inicio * baseTrapecio);
-		// Suma el área calculada al acumulador local
+		// Suma el area calculada al acumulador local
 		local += area(inicioTrapecio, inicioTrapecio + baseTrapecio);
 
 	}
 
-	// Nota: El siguiente bloque podría usar `MPI_Reduce` para optimizar
+	// Nota: El siguiente bloque podria usar `MPI_Reduce` para optimizar
 	// MPI_Reduce(&local, &total, 1, MPI_LONG_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
 	// Sin embargo, no se utiliza debido a las restricciones del enunciado.
 
@@ -109,17 +109,17 @@ int main(int argc, char** argv) {
 
 	} else { // Si el proceso no es el maestro
 
-		// Envía los resultados locales al proceso maestro
+		// Envia los resultados locales al proceso maestro
 		MPI_Send(&local, 1, MPI_DOUBLE, 0, TAG, MPI_COMM_WORLD);
 
 	}
 
-	// Marca el fin de la medición del tiempo
+	// Marca el fin de la medicion del tiempo
 	gettimeofday(&end, NULL);
 
-	// Calcula el tiempo de sobrecarga antes del inicio real del cálculo
+	// Calcula el tiempo de sobrecarga antes del inicio real del calculo
 	double overhead = (start2.tv_sec - start.tv_sec) + (start2.tv_usec - start.tv_usec) / 1e6;
-	// Calcula el tiempo total del cálculo excluyendo la sobrecarga
+	// Calcula el tiempo total del calculo excluyendo la sobrecarga
 	double time = (end.tv_sec - start2.tv_sec) + (end.tv_usec - start2.tv_usec) / 1e6 - overhead;
 
 	if (world_rank == 0) { // Si el proceso es el maestro
