@@ -101,7 +101,7 @@ int main(int argc, char** argv) {
 
 		double diff = PI_REF - 4.0 * total;
 
-		printf("'DATA_FSP_V1',%.15f,%.15f,%ld,%d,%.15f\n", total, diff, numTrapecios, world_size, time);
+		printf("'DATA_FSP_V1',%.15f,%.15f,%ld,%d,%.15f\n", 4.0 * total, diff, numTrapecios, world_size, time);
 
 	} else {
 
